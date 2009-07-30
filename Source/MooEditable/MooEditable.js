@@ -929,106 +929,181 @@ MooEditable.UI.Dialog = new Class({
 
 	Implements: [Events, Options],
 
-	options:{
-		/*
+	options:{/*
 		onOpen: $empty,
-		onClose: $empty,
-		*/
-		'class': '',
-		contentClass: ''
+		onClose: $empty, */
+		className: 'mooeditable-ui-dialog',
+		contentClass: 'dialog-content'
 	},
 
-	initialize: function(html, options){
+	initialize: function(options){
 		this.setOptions(options);
-		this.html = html;
-		
-		var self = this;
-		this.el = new Element('div', {
-			'class': 'mooeditable-ui-dialog ' + self.options['class'],
-			html: '<div class="dialog-content ' + self.options.contentClass + '">' + html + '</div>',
-			styles: {
+	},
+
+	toElement: function(){
+		if (!this.element) this.buildElement();
+		return this.element;
+	},
+	
+	buildElement: function(){
+		this.element = new Element('div', {
+			'class': this.options.className,
+			'styles': {
 				'display': 'none'
-			},
-			events: {
-				click: self.click.bind(self)
 			}
 		});
-	},
-	
-	toElement: function(){
-		return this.el;
-	},
-	
-	click: function(){
-		this.fireEvent('click', arguments);
+		
+		this.content = new Element('div', {
+			'class': this.options.contentClass,
+		}).inject(this.element);
+		
 		return this;
 	},
-	
+
 	open: function(){
-		this.el.setStyle('display', '');
+		this.element.setStyle('display', '');
 		this.fireEvent('open', this);
 		return this;
 	},
-	
+
 	close: function(){
-		this.el.setStyle('display', 'none');
+		this.element.setStyle('display', 'none');
 		this.fireEvent('close', this);
 		return this;
 	}
 
 });
 
-MooEditable.UI.AlertDialog = function(alertText){
-	if (!alertText) return;
-	var html = alertText + ' <button class="dialog-ok-button">OK</button>';
-	return new MooEditable.UI.Dialog(html, {
-		'class': 'mooeditable-alert-dialog',
-		onOpen: function(){
-			var button = this.el.getElement('.dialog-ok-button');
-			(function(){
-				button.focus();
-			}).delay(10);
-		},
-		onClick: function(e){
-			e.preventDefault();
-			if (e.target.tagName.toLowerCase() != 'button') return;
-			if (document.id(e.target).hasClass('dialog-ok-button')) this.close();
-		}
-	});
-};
+MooEditable.UI.AlertDialog = new Class({
 
-MooEditable.UI.PromptDialog = function(questionText, answerText, fn){
-	if (!questionText) return;
-	var html = '<label class="dialog-label">' + questionText
-		+ ' <input type="text" class="text dialog-input" value="' + answerText + '">'
-		+ '</label> <button class="dialog-button dialog-ok-button">OK</button>'
-		+ '<button class="dialog-button dialog-cancel-button">Cancel</button>';
-	return new MooEditable.UI.Dialog(html, {
-		'class': 'mooeditable-prompt-dialog',
+	Extends: MooEditable.UI.Dialog,
+
+	options: {
 		onOpen: function(){
-			var input = this.el.getElement('.dialog-input');
 			(function(){
-				input.focus();
-				input.select();
-			}).delay(10);
+				this.button.focus();
+			}).delay(10, this);
 		},
-		onClick: function(e){
-			e.preventDefault();
-			if (e.target.tagName.toLowerCase() != 'button') return;
-			var button = document.id(e.target);
-			var input = this.el.getElement('.dialog-input');
-			if (button.hasClass('dialog-cancel-button')){
-				input.set('value', answerText);
-				this.close();
-			} else if (button.hasClass('dialog-ok-button')){
-				var answer = input.get('value');
-				input.set('value', answerText);
-				this.close();
-				if (fn) fn.attempt(answer, this);
+		onButtonClick: function(event){
+			this.close();
+		},
+		alertText: null
+	},
+
+	buildElement: function(){
+		this.parent();
+		
+		this.content.appendText(this.options.alertText);
+		this.button = new Element('button', {
+			'class': 'dialog-ok-button',
+			'text': 'OK',
+			'events': {
+				'click': this.buttonClick.bindWithEvent(this)
 			}
-		}
+		}).inject(this.content);
+		
+		return this;
+	},
+
+	buttonClick: function(event){
+		event.preventDefault();
+		this.fireEvent('buttonClick', event);
+	}
+
+});
+
+// classmethod
+MooEditable.UI.AlertDialog.new = function(alertText){
+	return new MooEditable.UI.AlertDialog({
+		alertText: alertText
 	});
-};
+}
+
+MooEditable.UI.PromptDialog = new Class({
+
+	Extends: MooEditable.UI.Dialog,
+
+	options: {/*
+		onAnswer: $empty,*/
+		onOpen: function(){
+			(function(){
+				this.input.focus();
+				this.input.select();
+			}).delay(10, this);
+		},
+		questionText: null,
+		answerText: null
+	},
+
+	buildElement: function(){
+		this.parent();
+		
+		var questionText = this.options.questionText;
+		var answerText = this.options.answerText;
+		
+		var html = '<label class="dialog-label">' + questionText
+			+ ' <input type="text" class="text dialog-input" value="' + answerText + '">'
+			+ '</label> <button class="dialog-button dialog-ok-button">OK</button>'
+			+ '<button class="dialog-button dialog-cancel-button">Cancel</button>';
+		
+		this.content.set('html', html);
+		
+		this.input = this.content.getElement('.dialog-input');
+		this.input.addEvent('keydown', this.keydown.bindWithEvent(this));
+		
+		var okButton = this.content.getElement('.dialog-ok-button');
+		okButton.addEvent('click', this.okClick.bindWithEvent(this));
+		
+		var cancelButton = this.content.getElement('.dialog-cancel-button');
+		cancelButton.addEvent('click', this.cancelClick.bindWithEvent(this));
+		
+		return this;
+	},
+
+	keydown: function(event){
+		if (event.key == 'enter') {
+			event.stop();
+			this.ok();
+		} else if (event.key == 'esc') {
+			event.stop();
+			this.cancel();
+		}
+	},
+
+	cancelClick: function(event){
+		event.preventDefault();
+		this.cancel();
+	},
+
+	okClick: function(event){
+		event.preventDefault();
+		this.ok();
+	},
+
+	cancel: function(){
+		this.input.set('value', this.options.answerText);
+		this.close();
+	},
+
+	ok: function(){
+		var answer = this.input.get('value');
+		this.input.set('value', this.options.answerText);
+		this.fireEvent('answer', answer);
+		this.close();
+	}
+
+});
+
+// classmethod
+MooEditable.UI.PromptDialog.new = function(questionText, answerText, callback){
+	var dialog = new MooEditable.UI.PromptDialog({
+		questionText: questionText,
+		answerText: answerText
+	});
+	if ($type(callback) == 'function')
+		dialog.addEvent('answer', callback);
+	return dialog;
+}
 
 MooEditable.Actions = new Hash({
 
@@ -1128,9 +1203,9 @@ MooEditable.Actions = new Hash({
 			tags: ['a']
 		},
 		dialogs: {
-			alert: MooEditable.UI.AlertDialog.pass('Please select the text you wish to hyperlink.'),
+			alert: MooEditable.UI.AlertDialog.new.pass('Please select the text you wish to hyperlink.'),
 			prompt: function(editor){
-				return MooEditable.UI.PromptDialog('Enter URL', 'http://', function(url){
+				return MooEditable.UI.PromptDialog.new('Enter URL', 'http://', function(url){
 					editor.execute('createlink', false, url.trim());
 				});
 			}
@@ -1155,7 +1230,7 @@ MooEditable.Actions = new Hash({
 		},
 		dialogs: {
 			prompt: function(editor){
-				return MooEditable.UI.PromptDialog('Enter image URL', 'http://', function(url){
+				return MooEditable.UI.PromptDialog.new('Enter image URL', 'http://', function(url){
 					editor.execute("insertimage", false, url.trim());
 				});
 			}
