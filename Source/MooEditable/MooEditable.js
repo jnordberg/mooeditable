@@ -1013,7 +1013,7 @@ MooEditable.UI.AlertDialog = new Class({
 });
 
 // classmethod
-MooEditable.UI.AlertDialog.new = function(alertText){
+MooEditable.UI.AlertDialog.createNew = function(alertText){
 	return new MooEditable.UI.AlertDialog({
 		alertText: alertText
 	});
@@ -1095,7 +1095,7 @@ MooEditable.UI.PromptDialog = new Class({
 });
 
 // classmethod
-MooEditable.UI.PromptDialog.new = function(questionText, answerText, callback){
+MooEditable.UI.PromptDialog.createNew = function(questionText, answerText, callback){
 	var dialog = new MooEditable.UI.PromptDialog({
 		questionText: questionText,
 		answerText: answerText
@@ -1203,9 +1203,9 @@ MooEditable.Actions = new Hash({
 			tags: ['a']
 		},
 		dialogs: {
-			alert: MooEditable.UI.AlertDialog.new.pass('Please select the text you wish to hyperlink.'),
+			alert: MooEditable.UI.AlertDialog.createNew.pass('Please select the text you wish to hyperlink.'),
 			prompt: function(editor){
-				return MooEditable.UI.PromptDialog.new('Enter URL', 'http://', function(url){
+				return MooEditable.UI.PromptDialog.createNew('Enter URL', 'http://', function(url){
 					editor.execute('createlink', false, url.trim());
 				});
 			}
@@ -1230,7 +1230,7 @@ MooEditable.Actions = new Hash({
 		},
 		dialogs: {
 			prompt: function(editor){
-				return MooEditable.UI.PromptDialog.new('Enter image URL', 'http://', function(url){
+				return MooEditable.UI.PromptDialog.createNew('Enter image URL', 'http://', function(url){
 					editor.execute("insertimage", false, url.trim());
 				});
 			}
